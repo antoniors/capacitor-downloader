@@ -131,8 +131,6 @@ public class DownloaderPlugin: CAPPlugin {
         download
             .validate()
             .responseData(completionHandler: { (response) in
-                print(response.result)
-
                 switch response.result {
                 case .success( _):
                     let d = DownloaderPlugin.downloadsData[id]
