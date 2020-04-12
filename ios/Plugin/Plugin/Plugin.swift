@@ -82,7 +82,15 @@ public class DownloaderPlugin: CAPPlugin {
         
         let id = self.generateId()
         
-        let download = Alamofire.download(url!, to: destination)
+        var urlRequest = URLRequest(url: URL(string: url!)!)
+        if (headers != nil) {
+            for (name, value) in headers ?? [:]
+            {
+                urlRequest.setValue(value as? String, forHTTPHeaderField: name)
+            }
+
+        }
+        let download = Alamofire.download(urlRequest, to: destination)
         var task:DownloadRequest?
         var lastRefreshTime = Int64(0);
         var lastBytesWritten =  Int64(0);
