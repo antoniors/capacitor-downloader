@@ -1,6 +1,7 @@
 package co.fitcom.capacitor.Downloader;
 
 import android.net.Uri;
+import android.util.Log;
 
 import com.getcapacitor.FileUtils;
 import com.getcapacitor.JSObject;
@@ -50,12 +51,20 @@ enum StatusCode {
             return "error";
         }
     },
+    CANCELED {
+      @Override
+      public String toString() {
+        return "canceled";
+      }
+    },
 }
 
 class DownloadData {
     private String status = null;
     private String path = null;
+    private String url = null;
     private PluginCall call = null;
+    private Long totalBytes = null;
 
     String getStatus() {
         return status;
@@ -64,6 +73,21 @@ class DownloadData {
     void setStatus(String status) {
         this.status = status;
     }
+
+    Long geTotalBytes() {
+      return totalBytes;
+    }
+    void setTotalBytes(Long totalBytes) {
+    this.totalBytes = totalBytes;
+  }
+
+    String getUrl() {
+      return url;
+    }
+
+    void setUrl(String url) {
+    this.url = url;
+  }
 
     PluginCall getCallback() {
         return call;
@@ -97,6 +121,8 @@ public class DownloaderPlugin extends Plugin {
                 JSObject object = new JSObject();
                 object.put("value", (currentBytes * 100 / totalBytes));
                 object.put("speed", speed);
+                data.setStatus(StatusCode.DOWNLOADING.toString());
+                data.setTotalBytes(totalBytes);
                 object.put("currentSize", currentBytes);
                 object.put("totalSize", totalBytes);
                 data.getCallback().success(object);
@@ -108,6 +134,10 @@ public class DownloaderPlugin extends Plugin {
         public void onUIComplete(String task) {
             DownloadData data = downloadsData.get(task);
             Request request = downloadsRequest.get(task);
+            if (data.geTotalBytes()  == -1) {
+              this.onError(task);
+              return;
+            }
             if (data != null) {
                 JSObject object = new JSObject();
                 object.put("status", StatusCode.COMPLETED);
@@ -120,9 +150,19 @@ public class DownloaderPlugin extends Plugin {
 
         }
 
+        public void onError(String task) {
+          DownloadData data = downloadsData.get(task);
+          if (data != null) {
+            data.getCallback().reject("byte 0 ".concat(data.getUrl()) );
+          }
+        }
+
         @Override
         public void onUIError(String task, Exception e) {
             DownloadData data = downloadsData.get(task);
+            if (data.getStatus() == StatusCode.CANCELED.toString()) {
+              return;
+            }
             if (data != null) {
                 data.getCallback().reject(e.getLocalizedMessage());
             }
@@ -161,9 +201,11 @@ public class DownloaderPlugin extends Plugin {
         JSObject headers = call.getObject("headers");
         String path = call.getString("path");
         String fileName = call.getString("fileName");
+        DownloadData data = new DownloadData();
+        data.setUrl(url);
         Request request = new Request(url);
         request.setTimeout(timeout);
-        DownloadData data = new DownloadData();
+
         if (query != null) {
             // TODO
         }
@@ -225,9 +267,16 @@ public class DownloaderPlugin extends Plugin {
 
     @PluginMethod()
     public void cancel(PluginCall call) {
+      try {
         String id = call.getString("id");
+        DownloadData data = downloadsData.get(id);
+        data.setStatus(StatusCode.CANCELED.toString());
         Manager manager = Manager.getInstance();
         manager.cancel(id);
+      } catch (Exception Ex) {
+
+      }
+
     }
 
     @PluginMethod()
